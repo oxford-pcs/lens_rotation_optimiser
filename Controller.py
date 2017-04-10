@@ -1,4 +1,13 @@
+class ControllerFunctionError(Exception):
+  def __init__(self, message, error):
+    super(Exception, self).__init__(message)
+    self.errors = error
+
 class Controller():
+  '''
+    This class wraps the functionality from pyZDDE into more convenient functions 
+    for the purposes of this simulation.
+  '''
   def __init__(self, zmx_link):
     self.zmx_link = zmx_link
     
@@ -24,10 +33,7 @@ class Controller():
                                                           ytilt=y_tilt)
     self.DDEToLDE()
     return (cb1, cb2, dummy)
-  
-  def delMFOperand(self, row_number):
-    self.zmx_link.zDeleteMFO(row_number)
-    
+
   def findSurfaceNumberFromComment(self, comment):
     for surface_number in range(1, self.getSystemData().numSurf+1):
       if comment in self.getSurfaceComment(surface_number):
@@ -36,16 +42,16 @@ class Controller():
   def getSurfaceComment(self, surface_number):
     return self.zmx_link.zGetSurfaceData(surface_number, self.zmx_link.SDAT_COMMENT) 
   
-  def getSurfaceDecentreX(self, surface_number):
+  def getCoordBreakDecentreX(self, surface_number):
     return self.zmx_link.zGetSurfaceParameter(surface_number, 1)
   
-  def getSurfaceDecentreY(self, surface_number):
+  def getCoordBreakDecentreY(self, surface_number):
     return self.zmx_link.zGetSurfaceParameter(surface_number, 2)
   
-  def getSurfaceTiltX(self, surface_number):
+  def getCoordBreakTiltX(self, surface_number):
     return self.zmx_link.zGetSurfaceParameter(surface_number, 3)
   
-  def getSurfaceTiltY(self, surface_number):
+  def getCoordBreakTiltY(self, surface_number):
     return self.zmx_link.zGetSurfaceParameter(surface_number, 4)
 
   def getSystemData(self):
@@ -55,7 +61,7 @@ class Controller():
     return self.zmx_link.zGetSurfaceData(surface_number, self.zmx_link.SDAT_THICK)
   
   def loadFile(self, path):
-    self.zmx_link.zLoadFile("C:\Users\\barnsley\Google Drive\camera70_empirical.ZMX")
+    self.zmx_link.zLoadFile(path)
     self.zmx_link.zPushLens()
     
   def loadMF(self, filename):
@@ -76,19 +82,19 @@ class Controller():
     self.zmx_link.zSetSurfaceData(surface_number, self.zmx_link.SDAT_COMMENT, comment)
     self.DDEToLDE()
     
-  def setSurfaceDecentreX(self, surface_number, value):
+  def setCoordBreakDecentreX(self, surface_number, value):
     return self.zmx_link.zSetSurfaceParameter(surface_number, 1, value)
   
-  def setSurfaceDecentreY(self, surface_number, value):
+  def setCoordBreakDecentreY(self, surface_number, value):
     return self.zmx_link.zSetSurfaceParameter(surface_number, 2, value)
   
-  def setSurfaceTiltX(self, surface_number, value):
+  def setCoordBreakTiltX(self, surface_number, value):
     return self.zmx_link.zSetSurfaceParameter(surface_number, 3, value)
   
-  def setSurfaceTiltY(self, surface_number, value):
+  def setCoordBreakTiltY(self, surface_number, value):
     return self.zmx_link.zSetSurfaceParameter(surface_number, 4, value)    
     
-  def setThicknessSolveVariable(self, surface_number):
+  def setSurfaceAsThicknessSolveVariable(self, surface_number):
     self.zmx_link.zSetSolve(surface_number, self.zmx_link.SOLVE_SPAR_THICK, self.zmx_link.SOLVE_CURV_VAR)
     self.DDEToLDE()
   

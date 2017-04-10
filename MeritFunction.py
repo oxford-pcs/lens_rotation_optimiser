@@ -6,7 +6,7 @@ class MeritFunctionError(Exception):
 class MeritFunction():
   '''
     This class provides functionality to create a merit function 
-    using Zemax's command DEFAULTMERIT and add extra operands.
+    using Zemax's command DEFAULTMERIT.
     
     To create a merit fnction, a blank (or not, it will be 
     overwritten) ZPL file is required to be placed in the macros 
@@ -32,6 +32,8 @@ class MeritFunction():
                         lateral=1, start=-1, xweight=1, oweight=1, 
                         pup_obsc=0):
     '''
+      Write the ZPL parsable command to the .ZPL file.
+    
       atype       use 0 for RMS, 1, for PTV.
       data        use 0 for wavefront, 1 for spot radius, 2 for spot x, 
                   3 for spot y, 4 for spot x + y.
@@ -72,6 +74,8 @@ class MeritFunction():
     
   def _populateNumberOfMFOperands(self):
     '''
+      Find the number of Merit Function operands in the MFE.
+    
       Have to first insert a row then delete to get the return value 
       (number of operands).
     '''
@@ -79,11 +83,16 @@ class MeritFunction():
     self.nMFOperands = self.zmx_link.zDeleteMFO(1)     
     
   def _populateContents(self):
+    '''
+      Populate MFContents variable with data from the MFE.
+    '''
     self.MFContents = self.zmx_link.ipzGetMFE(end_row=self.nMFOperands, 
                                               pprint=False)
 
   def _DDEToLDE(self):
     self.lens_data.DDEToLDE()
+    self._populateNumberOfMFOperands()
+    self._populateContents()
 
   def _LDEToDDE(self):
     self.lens_data.LDEToDDE()
@@ -94,27 +103,49 @@ class MeritFunction():
                       rings=8, arms=3, grid=8, delete=0, axial=0, 
                       lateral=1, start=-1, xweight=1, oweight=1, 
                       pup_obsc=0):
+    '''
+      Create a default Merit Function and place it in the DDE.
+      
+      See _constructCommand() for parameter explanations.
+    '''
     
-    # make .ZPL command and write to macro
+    # Make .ZPL command and write to macro
     self._constructCommand(atype, data, reference, method, rings, arms, 
                            grid, delete, axial, lateral, start, xweight, 
                            oweight, pup_obsc)
     
-    # execute command and move data from LDE to DDE. Note that executing 
-    # a macro only updates the LDE, and so we need to update the DDE 
+    # Execute command and move data from LDE to DDE. Note that executing 
+    # a macro only updates the LDE and so we need to update the DDE 
     # to access the updated function.
     #
     zpl_code = self.mfe_zpl_filename[0:3]
     rtn_code = self.zmx_link.zExecuteZPLMacro(zpl_code)
     self._LDEToDDE() 
+      
+  def delMFOperand(self, row_number):
+    '''
+      Delete a MF operands from the MFE.
+    '''
+    self.zmx_link.zDeleteMFO(row_number)
+    self._LDEToDDE()
     
   def getRowNumberFromMFContents(self, oper, comment):
+    '''
+      Get row number number of an operand in the MFE given the 
+      operand name and (optionally) comment.
+    '''
     for idx, row in enumerate(self.MFContents):
-      if row.Oper == oper and row.int1 == comment:
-        return idx+1
+      if row.Oper == oper:
+        if comment is not None and row.int1 == comment:
+          return idx+1
+        else:
+          return idx+1
     return 0
       
   def setAirGapConstraints(self, ins_row_number, surface_number, min_gap, max_gap):
+    '''
+      Add air gap constraints.
+    '''
     self.zmx_link.zInsertMFO(ins_row_number)
     self.zmx_link.zSetOperandRow(ins_row_number, "MNCA", int1=surface_number, 
                                   int2=surface_number, data1=None, 
@@ -128,7 +159,3 @@ class MeritFunction():
                                   data5=None, data6=None, tgt=max_gap, 
                                   wgt=1.0)          
     self._DDEToLDE()
-  
-      
-      
-            

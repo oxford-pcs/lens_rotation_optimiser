@@ -1,6 +1,5 @@
 import itertools
 import collections
-import json
 import argparse
 
 import numpy as np
@@ -9,19 +8,12 @@ import pyzdde.zdde as pyz
 
 from MeritFunction import MeritFunction
 from Controller import Controller
+from util import *
 
-def lookUp(lens, mount_position, axis_type='OPTICAL'):
-  for conf in cfg['LENS']:
-    if conf['label'] == lens:
-      for data in conf['data']:
-        if data['mount_position'] == int(mount_position):
-          for axis in data['axis']:
-            if axis['axis_type'] == axis_type:
-              return (float(axis['x_decentre']), 
-                      float(axis['y_decentre']),
-                      float(axis['x_tilt']),
-                      float(axis['y_tilt']))
-
+class goErrorException(Exception):
+  def __init__(self, message, error):
+    super(Exception, self).__init__(message)
+    self.errors = error
 
 def go(args, cfg):
   zmx_link = pyz.createLink() # DDE link object
@@ -29,24 +21,45 @@ def go(args, cfg):
   
   zcontroller.loadFile(cfg['GENERAL']['zmx_file'])
   
-  # first, we label all lens surfaces with the corresponding 
-  # comments so we can find them later when the numbering changes.
-  #
-  for entry in cfg['LENS']:
-    for surf in range(entry['start_surface_number'], entry['end_surface_number']+1):
-      zcontroller.setComment(int(surf), str(entry['label']), append=True)    
+  # First, label all lens surfaces with comments for easier identification.
+  print "Adding surface comments."
+  for lens in cfg['LENSES']:
+    for surf in range(lens['start_surface_number'], lens['end_surface_number']+1):
+      zcontroller.setComment(int(surf), str(lens['label']), append=True)    
 
-  # add tilts and decentres, keep track of coordinate breaks and dummy surface 
-  # numbers that we will need to change later. note that the offset will only 
-  # be correct if the zcontroller lens numbers are monotonically increasing. #FIXME
-  offset = 0
-  coordinate_break_surface_numbers = {}
-  dummy_surface_numbers = {}
-  for entry in cfg['LENS']:
-    start_surface_number = entry['start_surface_number'] + offset
-    end_surface_number = entry['end_surface_number'] + offset
-    label = str(entry['label'])
-    # initialise the relevant tilt/decentre coordinate breaks
+  # Add tilts and decentres.
+  # 
+  # Need to keep track of the first coordinate break surfaces and dummy surface numbers. 
+  # The former contains information pertaining to the tilts and decentres, the latter the 
+  # air gap spacing.
+  #
+  
+  # First make sure that the lenses in the config file are in monotonically increasing 
+  # order.
+  #
+  lenses = {}
+  for lens in cfg['LENSES']:
+    lenses[lens['label']] = int(lens['start_surface_number'])
+  lenses_sorted = sorted(lenses, key=lenses.get)
+
+  # Now add the required surfaces.
+  #
+  offset = 0  # this variable keeps track of how much we need to offset the surface number
+  coordinate_break_surface_numbers = {} # tilts, decentres
+  dummy_surface_numbers = {}            # air gaps
+  print "Adding coordinate breaks."
+  for lens in lenses_sorted:
+    this_lens_entry = lookUpLensEntryFromConfig(cfg, lens)
+    start_surface_number = this_lens_entry['start_surface_number'] + offset
+    end_surface_number = this_lens_entry['end_surface_number'] + offset
+    label = str(this_lens_entry['label'])
+    
+    # Initialise the relevant tilt/decentre coordinate breaks
+    #
+    # cb1 = coord changing surface number, 
+    # cb2 = return surface number (PICKUP), 
+    # dummy = air gap surface number.
+    #
     cb1, cb2, dummy = zcontroller.addTiltAndDecentre(start_surface_number, 
                                                    end_surface_number, 
                                                    x_decentre=0.,
@@ -57,116 +70,121 @@ def go(args, cfg):
     dummy_surface_numbers[label] = int(dummy)
     offset = offset + 2 + (end_surface_number-start_surface_number)
     
-  # set the thickness surfaces as variable
-  for k, v in dummy_surface_numbers.iteritems():
-    zcontroller.setThicknessSolveVariable(v)
+  # Set the thickness of the dummy surfaces as variable if requested.
+  if args.va:
+    print "Setting air gaps as variable."
+    for k, v in dummy_surface_numbers.iteritems():
+      zcontroller.setSurfaceAsThicknessSolveVariable(v)
+  
+  # Next we make the Merit Functions, if requested. If not, the existing merit functions 
+  # at the predefined locations below will be used.
+  #
+  MF = MeritFunction(zmx_link, zcontroller, cfg['GENERAL']['zpl_path'], 
+                    cfg['GENERAL']['zpl_filename'])
+  if args.mfo == 'SPOT':
+    print "Creating merit function for optimising SPOT SIZE."
+    MF.createDefaultMF()         # optimise for SPOT SIZE
+  elif args.mfo == 'WAVE':
+    print "Creating merit function for optimising WAVEFRONT."
+    MF.createDefaultMF(data=0)   # optimise for WAVEFRONT
+  else:
+    raise goErrorException("Couldn't recognise optimiser argument.", 1)
     
-  mf_spot_path = cfg['GENERAL']['mf_dir'] + "SPOT.MF"
-  mf_wave_path = cfg['GENERAL']['mf_dir'] + "WAVE.MF"
-  if args.mf:
-    # next, we make a default SPOT merit function
-    MF = MeritFunction(zmx_link, zcontroller, cfg['GENERAL']['zpl_path'], 
-                      cfg['GENERAL']['zpl_filename'])
-    MF.createDefaultMF()    
-      
-    # delete the comment, add air gap constraints, dummy surface holds the gap 
-    # information now (post tilt and decentre)
-    #
-    ins_row_number = MF.getRowNumberFromMFContents('BLNK', 'No air or glass constraints.')
-    zcontroller.delMFOperand(ins_row_number)
-      
-    for entry in cfg['LENS']:
-      MF.setAirGapConstraints(ins_row_number, dummy_surface_numbers[entry['label']], 
-                              entry['min_air_gap'], entry['max_air_gap'])
-    zcontroller.saveMF(mf_spot_path)
- 
-    # next, we make a default WAVE merit function
-    MF = MeritFunction(zmx_link, zcontroller, cfg['GENERAL']['zpl_path'], 
-                      cfg['GENERAL']['zpl_filename'])
-    MF.createDefaultMF(data=0)    
-      
-    # delete the comment, add air gap constraints, dummy surface holds the gap 
-    # information now (post tilt and decentre)
-    #
-    ins_row_number = MF.getRowNumberFromMFContents('BLNK', 'No air or glass constraints.')
-    zcontroller.delMFOperand(ins_row_number)
-      
-    for entry in cfg['LENS']:
-      MF.setAirGapConstraints(ins_row_number, dummy_surface_numbers[entry['label']], 
-                              entry['min_air_gap'], entry['max_air_gap'])
-    zcontroller.saveMF(mf_wave_path)
+  # Delete the air gap comment, add new constraints and save it.
+  ins_row_number = MF.getRowNumberFromMFContents('BLNK', 'No air or glass constraints.')
+  MF.delMFOperand(ins_row_number)
+  print "Setting air gap constraints."
+  for lens in cfg['LENSES']:
+    MF.setAirGapConstraints(ins_row_number, dummy_surface_numbers[lens['label']], 
+                            lens['min_air_gap'], lens['max_air_gap'])
 
-  # Finally, we can go through the various permutations of tilts/decentres and 
-  # evaluate the MF for each
-  zcontroller.loadMF(mf_spot_path)
+  # Finally, we can go through the various combinations of tilts/decentres and 
+  # optimise (optional) and evaluate the MF for each.
+  #
+  # First step of this process is to get all combinations, including those that have 
+  # multiple entries for the same lens.
+  #
   lens_configurations = []
-  nLenses = 0
-  for lens in cfg['LENS']:
-    nLenses+=1
+  n_lenses = 0
+  for lens in cfg['LENSES']:
+    n_lenses+=1
     for data in lens['data']:
       lens_configurations.append(str(lens['label']) + '_' + str(data['mount_position']))
-   
-  a = [x for x in itertools.combinations(lens_configurations, nLenses)]
-  nodup = []
-  for entry in a:
-    counter=collections.Counter([b.split('_')[0] for b in entry])
+  all_mount_combinations = [x for x in itertools.combinations(lens_configurations, 
+                                                              n_lenses)]
+  
+  # Then we remove these duplicates.
+  #
+  all_mount_combinations_nodup = []
+  for comb in all_mount_combinations:
+    counter=collections.Counter([entry.split('_')[0] for entry in comb])
     if counter.most_common(1)[0][1] == 1:
-      nodup.append(entry)
+      all_mount_combinations_nodup.append(comb)
 
+  # And optimise/evaluate the MF for each.
+  #
+  print "Beginning optimisation/evaluation of merit functions."
   mf_values = []
-  for index, entry in enumerate(nodup):
-    for configuration in entry:
-      lens = configuration.split('_')[0]
-      mount_position = configuration.split('_')[1]
-      x_dc, y_dc, x_tilt, y_tilt = lookUp(lens, mount_position)
-    
-      zcontroller.setSurfaceDecentreX(coordinate_break_surface_numbers[lens], x_dc)
-      zcontroller.setSurfaceDecentreY(coordinate_break_surface_numbers[lens], y_dc)
-      zcontroller.setSurfaceTiltX(coordinate_break_surface_numbers[lens], x_tilt)
-      zcontroller.setSurfaceTiltY(coordinate_break_surface_numbers[lens], y_tilt)
+  for index, combination in enumerate(all_mount_combinations_nodup):
+    for entry in combination:
+      lens = entry.split('_')[0]
+      mount_position = entry.split('_')[1]
+      x_dc, y_dc, x_tilt, y_tilt = lookUpLensAxisDataFromConfig(cfg, 
+                                                                lens, 
+                                                                mount_position)
+      
+      # Set the corresponding decentres and tilts.
+      zcontroller.setCoordBreakDecentreX(coordinate_break_surface_numbers[lens], x_dc)
+      zcontroller.setCoordBreakDecentreY(coordinate_break_surface_numbers[lens], y_dc)
+      zcontroller.setCoordBreakTiltX(coordinate_break_surface_numbers[lens], x_tilt)
+      zcontroller.setCoordBreakTiltY(coordinate_break_surface_numbers[lens], y_tilt)
     
     zcontroller.DDEToLDE()   
-    mf_value = zcontroller.optimise(nCycles=0) # not optimising
+    mf_value = zcontroller.optimise(nCycles=args.n) # not optimising
     mf_values.append(mf_value)
-    print index, mf_value
     
-  best_index = np.argmin(mf_values)
+    print "Combination number:\t" + str(index) 
+    print "Combination:\t\t" + ', '.join(combination)
+    print "MF value:\t\t" + str(round(mf_value,4))
+    print
     
-  plt.plot(mf_values, 'kx')
-  plt.show()
-  for configuration in nodup[best_index]:
+  best_mf_index = np.argmin(mf_values)
+  print "Best merit function index:\t" + str(best_mf_index)
+  print "Best merit function value:\t" + str(mf_values[best_mf_index])
+  
+  # Plot result if requested.
+  if args.p:
+    plt.plot(mf_values, 'kx')
+    plt.xlabel("Iteration number")
+    plt.ylabel("MF value")
+    plt.show()
+    
+  # Update the LDE with the best configuration.
+  for configuration in nodup[best_mf_index]:
     lens = configuration.split('_')[0]
     mount_position = configuration.split('_')[1]
-    x_dc, y_dc, x_tilt, y_tilt = lookUp(lens, mount_position)
-    print lens, mount_position, lookUp(lens, mount_position)
+    x_dc, y_dc, x_tilt, y_tilt = lookUpLensAxisDataFromConfig(lens, mount_position)
 
-    zcontroller.setSurfaceDecentreX(coordinate_break_surface_numbers[lens], x_dc)
-    zcontroller.setSurfaceDecentreY(coordinate_break_surface_numbers[lens], y_dc)
-    zcontroller.setSurfaceTiltX(coordinate_break_surface_numbers[lens], x_tilt)
-    zcontroller.setSurfaceTiltY(coordinate_break_surface_numbers[lens], y_tilt)
+    zcontroller.setCoordBreakDecentreX(coordinate_break_surface_numbers[lens], x_dc)
+    zcontroller.setCoordBreakDecentreY(coordinate_break_surface_numbers[lens], y_dc)
+    zcontroller.setCoordBreakTiltX(coordinate_break_surface_numbers[lens], x_tilt)
+    zcontroller.setCoordBreakTiltY(coordinate_break_surface_numbers[lens], y_tilt)
   zcontroller.DDEToLDE() 
-  print zcontroller.optimise(nCycles=0) # not optimising
-
-  '''mf_value = zcontroller.optimise(nCycles=2)  
-  mf_value = zcontroller.optimise(nCycles=-1)
-  print mf_value, '\t',  zcontroller.getThickness(20), '\t',  zcontroller.getThickness(25), '\t',  zcontroller.getThickness(30), '\t',  zcontroller.getThickness(35), '\t',  zcontroller.getThickness(41)
-  mf_value = zcontroller.optimise(nCycles=10000)
-  print mf_value, '\t',  zcontroller.getThickness(20), '\t',  zcontroller.getThickness(25), '\t',  zcontroller.getThickness(30), '\t',  zcontroller.getThickness(35), '\t',  zcontroller.getThickness(41)
-  zcontroller.DDEToLDE()'''
+  zcontroller.optimise(nCycles=args.n)
   
   pyz.closeLink()
   
 if __name__== "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("-c", help="configuration file", default="config.json")
-  parser.add_argument("-n", help="number of optimise iterations", default=0)
-  parser.add_argument("-mf", help="make merit functions", action='store_true')
+  parser.add_argument("-n", help="number of optimise iterations. (0=auto, -1=none)", default=-1)
+  parser.add_argument("-p", help="plot?", action='store_true')
+  parser.add_argument("-mfo", help="optimise for spot size or wavefront? (SPOT||WAVE)", default='SPOT')
+  parser.add_argument("-va", help="set air gaps variable?", action='store_true')
+
   args = parser.parse_args()
-  
-  with open(args.c) as fp:
-    cfg = json.load(fp)
-    
-  go(args, cfg)
+   
+  go(args, loadConfig(args.c))
   
       
 

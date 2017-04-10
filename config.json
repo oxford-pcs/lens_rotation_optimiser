@@ -2,10 +2,9 @@
    "GENERAL":{
       "zmx_file":"C:\\Users\\barnsley\\Google Drive\\camera70_empirical.ZMX",
       "zpl_path":"C:\\Users\\barnsley\\Documents\\Zemax\\Macros\\",
-      "zpl_filename":"DEFAULTMERIT.ZPL",
-      "mf_dir":"C:\\Users\\barnsley\\Google Drive\\"
+      "zpl_filename":"DEFAULTMERIT.ZPL"
    },
-   "LENS":[
+   "LENSES":[
       {
          "start_surface_number":16,
          "end_surface_number":17,
