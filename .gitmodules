@@ -1,0 +1,3 @@
+[submodule "zemax_controller"]
+	path = zemax_controller
+	url = https://github.com/oxford-pcs/zemax_controller.git

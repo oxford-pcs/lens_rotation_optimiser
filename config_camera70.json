@@ -1,8 +1,19 @@
 {
    "GENERAL":{
-      "zmx_file":"C:\\Users\\barnsley\\Google Drive\\camera70_empirical.ZMX",
+      "zmx_file":"C:\\Users\\barnsley\\Google Drive\\camera70.ZMX",
       "zpl_path":"C:\\Users\\barnsley\\Documents\\Zemax\\Macros\\",
       "zpl_filename":"DEFAULTMERIT.ZPL"
+   },
+   "SYSTEM": {
+      "detector_surface_number":31,
+      "use_decentres": false,
+      "use_tilts": true,
+      "variable_air_gaps":false,
+      "variable_detector_surface_distance": false,
+      "variable_detector_surface_decentre": false,
+      "variable_detector_surface_tilt": false,
+      "variable_lens_tilts": false,
+      "variable_lens_decentres": true
    },
    "LENSES":[
       {
