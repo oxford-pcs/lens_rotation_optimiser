@@ -1,0 +1,65 @@
+{  
+   "GENERAL":{  
+      "zmx_file":"C:\\Users\\barnsley\\Google Drive\\camera70_apogeefields.ZMX",
+      "zpl_path":"C:\\Users\\barnsley\\Documents\\Zemax\\Macros\\",
+      "zpl_filename":"DEFAULTMERIT.ZPL"
+   },
+   "SYSTEM":{  
+      "detector_surface_number":31,
+      "use_decentres":false,
+      "use_tilts":true,
+      "variable_air_gaps":false,
+      "variable_detector_surface_distance":false,
+      "variable_detector_surface_decentre":false,
+      "variable_detector_surface_tilt":false,
+      "variable_lens_tilts":false,
+      "variable_lens_decentres":true
+   },
+   "LENSES":[  
+      {  
+         "start_surface_number":16,
+         "end_surface_number":17,
+         "z_pivot": 3.25, 
+         "label":"L1",
+         "min_air_gap":0.5,
+         "max_air_gap":999,
+         "data":[]
+      },
+      {  
+         "start_surface_number":18,
+         "end_surface_number":19,
+         "z_pivot": 7.5, 
+         "label":"L2",
+         "min_air_gap":0.5,
+         "max_air_gap":999,
+         "data":[]
+      },
+      {  
+         "start_surface_number":20,
+         "end_surface_number":21,
+         "z_pivot": 20, 
+         "label":"L3",
+         "min_air_gap":0.5,
+         "max_air_gap":999,
+         "data":[]
+      },
+      {  
+         "start_surface_number":22,
+         "end_surface_number":23,
+         "z_pivot": 14.5, 
+         "label":"L4",
+         "min_air_gap":0.5,
+         "max_air_gap":999,
+         "data":[]
+      },
+      {  
+         "start_surface_number":24,
+         "end_surface_number":26,
+         "z_pivot": 20.05, 
+         "label":"L56",
+         "min_air_gap":0.5,
+         "max_air_gap":999,
+         "data":[]
+      }
+   ]
+}
