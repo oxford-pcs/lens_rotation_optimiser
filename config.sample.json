@@ -1,19 +1,19 @@
 {  
    "GENERAL":{  
-      "zmx_file":"C:\\Users\\barnsley\\Google Drive\\camera70_apogeefields.ZMX",
+      "zmx_file":"C:\\Users\\barnsley\\Google Drive\\Spectrograph_Optics\\camera70_apogeefields_nowindow.zmx",
       "zpl_path":"C:\\Users\\barnsley\\Documents\\Zemax\\Macros\\",
       "zpl_filename":"DEFAULTMERIT.ZPL"
    },
    "SYSTEM":{  
-      "detector_surface_number":31,
+      "detector_surface_number":27,
       "use_decentres":false,
-      "use_tilts":true,
+      "use_tilts":false,
       "variable_air_gaps":false,
       "variable_detector_surface_distance":false,
       "variable_detector_surface_decentre":false,
       "variable_detector_surface_tilt":false,
       "variable_lens_tilts":false,
-      "variable_lens_decentres":true
+      "variable_lens_decentres":false
    },
    "LENSES":[  
       {  

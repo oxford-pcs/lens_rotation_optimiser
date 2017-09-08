@@ -10,6 +10,7 @@ if __name__== "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("-c", help="configuration file", default="config.sample.json")
   parser.add_argument("-d", help="measured data file", default="out")
+  parser.add_argument("-o", help="output data file", default="config.sample.json.new")
 
   args = parser.parse_args()
    
@@ -23,5 +24,5 @@ for idx, entry in enumerate(cfg['LENSES']):
         new_data = line.split(line.split(':')[0] + ':')[1]
         cfg['LENSES'][idx]['data'] = json.loads(new_data)
 
-with open(args.c + ".new", 'w') as outfile:  
+with open(args.o, 'w') as outfile:  
     json.dump(cfg, outfile, indent=4, sort_keys=True)

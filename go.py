@@ -2,6 +2,7 @@ import itertools
 import collections
 import argparse
 import json
+import os
 
 import numpy as np
 import pylab as plt
@@ -51,7 +52,7 @@ def go(args, cfg):
   zmx_link = pyz.createLink()
   zcontroller = Controller(zmx_link)
   
-  print "Loading file " + cfg['GENERAL']['zmx_file']
+  print "Loading file " + cfg['GENERAL']['zmx_file']  
   zcontroller.loadZemaxFile(cfg['GENERAL']['zmx_file'])
   
   # Label all lens surfaces with comments for easier identification.
@@ -235,19 +236,45 @@ def go(args, cfg):
     print "MF value:\t\t" + str(round(mf_value,4))
     print
     
-  best_mf_index = np.argmin(mf_values)
+  best_mf_index = np.argmin([i for i in mf_values if i > 0])
   print "Best merit function index:\t" + str(best_mf_index)
   print "Best merit function value:\t" + str(mf_values[best_mf_index])
   print "Best combination:\t\t" + ', '.join(combinations[best_mf_index])
   
-  # Plot result if requested.
+  worst_mf_index = np.argmax([i for i in mf_values if i > 0])  
+  print "Worst merit function index:\t" + str(worst_mf_index)  
+  print "Worst merit function value:\t" + str(mf_values[worst_mf_index])  # Plot result if requested.
+  print "Worst combination:\t\t" + ', '.join(combinations[worst_mf_index])  
+  
   if args.p:
     plt.plot(mf_values, 'kx')
     plt.xlabel("Iteration number")
     plt.ylabel("MF value")
     plt.show()
+
+  # Update the LDE with the worst configuration, and save
+  for configuration in all_mount_combinations_nodup[worst_mf_index]:
+    lens = configuration.split('_')[0]
+    mount_position = configuration.split('_')[1]
+    x_dc, y_dc, x_tilt, y_tilt = lookUpLensAxisDataFromConfig(cfg, 
+                                                              lens, 
+                                                              mount_position)
+
+    if cfg['SYSTEM']['use_decentres']:
+      zcontroller.setCoordBreakDecentreX(coordinate_break_surface_numbers[lens], 
+                                         x_dc)
+      zcontroller.setCoordBreakDecentreY(coordinate_break_surface_numbers[lens], 
+                                         y_dc)
+    if cfg['SYSTEM']['use_tilts']:
+      zcontroller.setCoordBreakTiltX(coordinate_break_surface_numbers[lens], 
+                                     x_tilt)
+      zcontroller.setCoordBreakTiltY(coordinate_break_surface_numbers[lens], 
+                                     y_tilt)
+  zcontroller.DDEToLDE() 
+  zcontroller.doOptimise(nCycles=args.n)
+  zcontroller.saveZemaxFile(os.getcwd() + "\\" + "WORST.zmx")
     
-  # Update the LDE with the best configuration.
+  # Update the LDE with the best configuration, and saavce
   for configuration in all_mount_combinations_nodup[best_mf_index]:
     lens = configuration.split('_')[0]
     mount_position = configuration.split('_')[1]
@@ -267,13 +294,14 @@ def go(args, cfg):
                                      y_tilt)
   zcontroller.DDEToLDE() 
   zcontroller.doOptimise(nCycles=args.n)
+  zcontroller.saveZemaxFile(os.getcwd() + "\\" +"BEST.zmx")
   
   pyz.closeLink()
   
 if __name__== "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("-c", help="configuration file", default="config.sample.json.new")
-  parser.add_argument("-o", help="optimise for spot size or wavefront? (SPOT||WAVE)", default='SPOT')
+  parser.add_argument("-o", help="optimise for spot size or wavefront? (SPOT||WAVE)", default='WAVE')
   parser.add_argument("-n", help="number of optimise iterations. (0=auto, -1=none)", default=-1, type=int)
   parser.add_argument("-p", help="plot?", action='store_true')
   
