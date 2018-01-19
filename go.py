@@ -8,8 +8,8 @@ import numpy as np
 import pylab as plt
 import pyzdde.zdde as pyz
 
-from zemax_controller.MeritFunction import MeritFunction
-from zemax_controller.Controller import Controller
+from zController.MeritFunction import MeritFunction
+from zController.Controller import Controller
 
 def loadConfig(path):
   with open(path) as fp:
