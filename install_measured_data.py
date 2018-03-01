@@ -8,9 +8,9 @@ def loadConfig(path):
   
 if __name__== "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument("-c", help="configuration file", default="config.sample.json")
+  parser.add_argument("-c", help="configuration file", default="etc/configs/config.sample.json")
   parser.add_argument("-d", help="measured data file", default="out")
-  parser.add_argument("-o", help="output data file", default="config.sample.json.new")
+  parser.add_argument("-o", help="output data file", default="etc/configs/config.sample.json.new")
 
   args = parser.parse_args()
    

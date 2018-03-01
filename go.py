@@ -243,7 +243,7 @@ def go(args, cfg):
   
   worst_mf_index = np.argmax([i for i in mf_values if i > 0])  
   print "Worst merit function index:\t" + str(worst_mf_index)  
-  print "Worst merit function value:\t" + str(mf_values[worst_mf_index])  # Plot result if requested.
+  print "Worst merit function value:\t" + str(mf_values[worst_mf_index])
   print "Worst combination:\t\t" + ', '.join(combinations[worst_mf_index])  
   
   if args.p:
@@ -300,7 +300,7 @@ def go(args, cfg):
   
 if __name__== "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument("-c", help="configuration file", default="config.sample.json.new")
+  parser.add_argument("-c", help="configuration file", default="etc/configs/config.sample.json.new")
   parser.add_argument("-o", help="optimise for spot size or wavefront? (SPOT||WAVE)", default='WAVE')
   parser.add_argument("-n", help="number of optimise iterations. (0=auto, -1=none)", default=-1, type=int)
   parser.add_argument("-p", help="plot?", action='store_true')
