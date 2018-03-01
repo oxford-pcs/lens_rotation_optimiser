@@ -3,6 +3,11 @@
 Find the optimal configuration for a series of rotatable lenses in a barrel 
 given their measured mount decentres, tilts and lens radii/thicknesses.
 
+## Dependencies
+- Zemax
+- PyZDDE
+- zController
+
 ## Overview
 
 This program has been designed to be used on the output of the rotation analysis 
